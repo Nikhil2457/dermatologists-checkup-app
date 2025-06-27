@@ -17,12 +17,13 @@ const dermatologistRoutes = require('./routes/dermatologist');
 const dermatologistProfileRoutes = require('./routes/dermatologistRoutes');
 const adminRoutes = require('./routes/admin');
 const phonepeRoutes = require('./routes/phonepe');
+const otpRoutes = require('./routes/otp');
 
 const app = express();
 
 // ✅ CORS - More permissive for debugging
 app.use(cors({
-  origin: 'http://localhost:3000', // Allow all origins for debugging
+  origin: process.env.FRONTEND_URL, // Allow all origins for debugging
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE','PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -47,7 +48,6 @@ app.get('/api/test', (req, res) => {
 });
 
 // ✅ Routes - Fixed order to avoid conflicts
-app.use('/api/auth', authRoutes);
 app.use('/api/dermatologists', dermatologistRoutes);
 app.use('/api/patient', require('./routes/patientRoutes'));
 app.use('/api/dermatologist', dermatologistProfileRoutes);
@@ -57,6 +57,8 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/ai', require('./routes/ai'));
 app.use('/api/ratings', require('./routes/ratings')); // Ratings system
 app.use('/api/phonepe', phonepeRoutes);
+app.use('/api/users',authRoutes);
+app.use('/api/otp', otpRoutes);
 
 // File upload routes
 

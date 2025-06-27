@@ -10,14 +10,10 @@ const phonepeHelper = require('../utils/phonepeHelper');
 const { Buffer } = require('node:buffer');
 const crypto = require('crypto');
 const { randomUUID } = require('crypto');
+const { sendSMSToIndia } = require('../utils/snsHelper');
 
 // PhonePe SDK imports
 const { StandardCheckoutClient, Env, MetaInfo, StandardCheckoutPayRequest } = require('pg-sdk-node');
-
-// 🔐 Twilio credentials
-const accountSid = 'AC3e1b18c53358b3bd90413768e913a31a';
-const authToken = '9a86ef69626a15fcb48dd990c33567a9';
-const client = require('twilio')(accountSid, authToken);
 
 // 📁 Multer config
 const storage = multer.diskStorage({
@@ -131,27 +127,22 @@ router.post('/checkup-request', upload.single('images'), async (req, res) => {
     await newRequest.save();
     console.log('✅ Checkup request saved successfully and payment marked as used');
 
-    //🔔 Send SMS with dermatologist and patient name
-    // try {
-    //   const dermatologist = await Dermatologist.findById(dermatologistId);
-    //   const patient = await User.findById(patientId); // ✅ Fetch patient name
+    //🔔 Send SMS with dermatologist and patient name using AWS SNS
+    try {
+      const dermatologist = await Dermatologist.findById(dermatologistId);
+      const patient = await User.findById(patientId); // ✅ Fetch patient name
 
-    //   if (dermatologist && dermatologist.phoneNumber && patient) {
-    //     const messageBody = `🧴 Hello Dr. ${dermatologist.name}, you received a new checkup request from ${patient.username}. Login to dashboard to review.`;
+      if (dermatologist && dermatologist.phoneNumber && patient) {
+        const messageBody = `🧴 Hello Dr. ${dermatologist.name}, you received a new checkup request from ${patient.username}. Login to dashboard to review.`;
 
-    //     const phone = `+91${dermatologist.phoneNumber}`;
-    //     await client.messages.create({
-    //       body: messageBody,
-    //       from: '+14179812807',
-    //       to: phone
-    //     });
-    //     console.log('✅ Twilio SMS sent to dermatologist');
-    //   } else {
-    //     console.log('❌ Missing dermatologist or patient info');
-    //   }
-    // } catch (smsErr) {
-    //   console.error('❌ Twilio SMS error:', smsErr.message);
-    // }
+        await sendSMSToIndia(dermatologist.phoneNumber, messageBody);
+        console.log('✅ AWS SNS SMS sent to dermatologist');
+      } else {
+        console.log('❌ Missing dermatologist or patient info');
+      }
+    } catch (smsErr) {
+      console.error('❌ AWS SNS SMS error:', smsErr.message);
+    }
 
     res.status(201).json({ message: 'Checkup request sent successfully' });
   } catch (error) {
