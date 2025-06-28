@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: dermatologists-checkup-app-front
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/build
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://dermatologists-checkup-app.onrender.com 

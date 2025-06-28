@@ -205,12 +205,17 @@ router.get('/payment-status', (req, res) => {
     
     if (!orderId || !patientId || !dermatologistId) {
         console.warn('[PHONEPE][REDIRECT] Missing query parameters');
-        return res.redirect(`${FRONTEND_URL}/payment-status?error=missing_params`);
+        return res.redirect(`${FRONTEND_URL}/payment-status.html?error=missing_params`);
     }
 
-    const frontendUrl = `${FRONTEND_URL}/payment-status?orderId=${orderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`;
-    console.log('[PHONEPE][REDIRECT] Redirecting to:', frontendUrl);
-    res.redirect(frontendUrl);
+    // Try React route first, fallback to HTML file
+    const reactUrl = `${FRONTEND_URL}/payment-status?orderId=${orderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`;
+    const htmlUrl = `${FRONTEND_URL}/payment-status.html?orderId=${orderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`;
+    
+    console.log('[PHONEPE][REDIRECT] Redirecting to React route:', reactUrl);
+    console.log('[PHONEPE][REDIRECT] HTML fallback available at:', htmlUrl);
+    
+    res.redirect(reactUrl);
 });
 
 module.exports = router; 
