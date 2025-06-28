@@ -272,25 +272,49 @@ router.get('/payments/status', async (req, res) => {
 // POST /api/payments/mark-paid
 router.post('/payments/mark-paid', async (req, res) => {
   try {
-    const { patientId, dermatologistId } = req.body;
-    console.log('[PAYMENT][MARK-PAID] Request received', { patientId, dermatologistId });
+    const { patientId, dermatologistId, orderId } = req.body;
+    console.log('[PAYMENT][MARK-PAID] Request received', { patientId, dermatologistId, orderId });
+    
     if (!patientId || !dermatologistId) {
       console.warn('[PAYMENT][MARK-PAID] Missing patientId or dermatologistId', { patientId, dermatologistId });
       return res.status(400).json({ success: false, message: 'Missing patientId or dermatologistId' });
     }
-    let payment = await Payment.findOne({ patientId, dermatologistId });
-    console.log('[PAYMENT][MARK-PAID] Payment found in DB:', payment);
+
+    // Try to find payment by orderId first, then by patientId and dermatologistId
+    let payment = null;
+    if (orderId) {
+      payment = await Payment.findOne({ orderId });
+      console.log('[PAYMENT][MARK-PAID] Payment found by orderId:', payment);
+    }
+    
     if (!payment) {
-      payment = new Payment({ patientId, dermatologistId, paid: true });
+      payment = await Payment.findOne({ patientId, dermatologistId });
+      console.log('[PAYMENT][MARK-PAID] Payment found by patientId and dermatologistId:', payment);
+    }
+
+    if (!payment) {
+      // Create a new payment record if none exists
+      payment = new Payment({ 
+        patientId, 
+        dermatologistId, 
+        orderId: orderId || `manual_${Date.now()}`,
+        amount: 0, // Default amount if not provided
+        paid: true 
+      });
       console.log('[PAYMENT][MARK-PAID] New payment created', { payment });
     } else {
+      // Update existing payment
       payment.paid = true;
       payment.timestamp = new Date();
+      if (orderId && !payment.orderId) {
+        payment.orderId = orderId;
+      }
       console.log('[PAYMENT][MARK-PAID] Existing payment updated', { payment });
     }
+    
     await payment.save();
     console.log('[PAYMENT][MARK-PAID] Payment saved', { payment });
-    res.json({ success: true });
+    res.json({ success: true, paymentId: payment._id });
     console.log('[PAYMENT][MARK-PAID] Response sent: { success: true }');
   } catch (err) {
     console.error('[PAYMENT][MARK-PAID] Error marking payment as paid:', err);
