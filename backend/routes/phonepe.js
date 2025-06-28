@@ -25,8 +25,8 @@ router.post('/initiate', async (req, res) => {
             merchantTransactionId: orderId,
             merchantUserId: patientId,
             amount: parseFloat(amount) * 100, // in paise
-            redirectUrl: `${FRONTEND_URL}/payment-status?orderId=${orderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`,
-            callbackUrl: `${FRONTEND_URL}/payment-status?orderId=${orderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`,
+            redirectUrl: `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/phonepe/payment-status?orderId=${orderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`,
+            callbackUrl: `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/phonepe/payment-status?orderId=${orderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`,
             paymentInstrument: { type: 'PAY_PAGE' }
         };
         const payloadBase64 = Buffer.from(JSON.stringify(paymentPayload), 'utf8').toString('base64');
@@ -86,6 +86,13 @@ router.get('/status/:orderId', async (req, res) => {
         console.error('PhonePe status check error:', error);
         res.status(500).json({ status: 'FAILED', message: error.message });
     }
+});
+
+// GET /payment-status - Backend route to handle payment status redirects
+router.get('/payment-status', (req, res) => {
+  const { orderId, patientId, dermatologistId } = req.query;
+  const frontendUrl = `${FRONTEND_URL}/payment-status?orderId=${orderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`;
+  res.redirect(frontendUrl);
 });
 
 module.exports = router; 

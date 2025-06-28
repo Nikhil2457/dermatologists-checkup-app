@@ -322,7 +322,7 @@ router.post('/checkup-request/initiate-payment', async (req, res) => {
 
     const merchantOrderId = randomUUID();
     const amountInPaise = parseFloat(amount) * 100; // Convert to paise
-    const redirectUrl = `${FRONTEND_URL}/payment-status?orderId=${merchantOrderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`;
+    const redirectUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/phonepe/payment-status?orderId=${merchantOrderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`;
     
     const metaInfo = MetaInfo.builder()
       .udf1(patientId)
