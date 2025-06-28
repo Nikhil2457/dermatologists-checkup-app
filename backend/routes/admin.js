@@ -17,7 +17,7 @@ router.get('/dashboard', adminAuth, (req, res) => {
 
 
 // GET /api/admin/stats
-router.get('/stats', async (req, res) => {
+router.get('/stats', adminAuth, async (req, res) => {
   try {
     const totalUsers = await User.countDocuments({ role: 'patient' });
     const totalDermatologists = await User.countDocuments({ role: 'dermatologist' });
@@ -68,7 +68,7 @@ res.cookie('admin_token', token, {
 });
 
 // POST /api/admin/create-dermatologist-user
-router.post('/create-dermatologist-user', async (req, res) => {
+router.post('/create-dermatologist-user', adminAuth, async (req, res) => {
   try {
     const { phoneNumber, password } = req.body;
 
@@ -97,7 +97,7 @@ router.post('/create-dermatologist-user', async (req, res) => {
 });
 
 // POST /api/admin/add-dermatologist
-router.post('/add-dermatologist', async (req, res) => {
+router.post('/add-dermatologist', adminAuth, async (req, res) => {
     try {
       const newDermatologist = await Dermatologist.create(req.body);
       res.status(201).json({ message: 'Dermatologist profile created', dermatologist: newDermatologist });
