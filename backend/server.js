@@ -73,8 +73,27 @@ const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017/dermatology
 mongoose.connect(mongoURI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
-}).then( () => {
+}).then(async () => {
   console.log('MongoDB Connected to:', mongoURI);
+
+  // ✅ Migration: Update existing Payment records to have default values
+  try {
+    const Payment = require('./models/Payment');
+    const result = await Payment.updateMany(
+      { $or: [{ orderId: { $exists: false } }, { amount: { $exists: false } }] },
+      { 
+        $set: { 
+          orderId: null,
+          amount: 0 
+        } 
+      }
+    );
+    if (result.modifiedCount > 0) {
+      console.log(`✅ Migrated ${result.modifiedCount} Payment records`);
+    }
+  } catch (migrationError) {
+    console.log('⚠️ Payment migration skipped:', migrationError.message);
+  }
 
   // ✅ Auto-create default admin if not exists
   // const existingAdmin = await Admin.findOne({ username: 'admin' });

@@ -297,8 +297,7 @@ router.post('/payments/mark-paid', async (req, res) => {
       payment = new Payment({ 
         patientId, 
         dermatologistId, 
-        orderId: orderId || `manual_${Date.now()}`,
-        amount: 0, // Default amount if not provided
+        orderId: orderId || null, // Allow null for backward compatibility
         paid: true 
       });
       console.log('[PAYMENT][MARK-PAID] New payment created', { payment });
@@ -378,7 +377,14 @@ router.post('/checkup-request/initiate-payment', async (req, res) => {
 
     if (response.state === 'PENDING' && response.redirectUrl) {
       // Save payment initiation in DB
-      await Payment.create({ patientId, dermatologistId, paid: false, used: false });
+      await Payment.create({ 
+        patientId, 
+        dermatologistId, 
+        orderId: merchantOrderId,
+        amount: parseFloat(amount),
+        paid: false, 
+        used: false 
+      });
       res.status(200).json({
         url: response.redirectUrl,
         orderId: merchantOrderId,
