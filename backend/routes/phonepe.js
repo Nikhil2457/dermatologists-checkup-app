@@ -25,8 +25,8 @@ router.post('/initiate', async (req, res) => {
             merchantTransactionId: orderId,
             merchantUserId: patientId,
             amount: parseFloat(amount) * 100, // in paise
-            redirectUrl: `${FRONTEND_URL}/payment-status/${orderId}`,
-            callbackUrl: `${FRONTEND_URL}/payment-status/${orderId}`,
+            redirectUrl: `${FRONTEND_URL}/payment-status?orderId=${orderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`,
+            callbackUrl: `${FRONTEND_URL}/payment-status?orderId=${orderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`,
             paymentInstrument: { type: 'PAY_PAGE' }
         };
         const payloadBase64 = Buffer.from(JSON.stringify(paymentPayload), 'utf8').toString('base64');
