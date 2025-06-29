@@ -200,7 +200,7 @@ router.get('/status/:orderId', async (req, res) => {
 });
 
 // GET /payment-status - Backend route to handle payment status redirects
-router.get('/payment-status', (req, res) => {
+router.get('/payment-status', async (req, res) => {
     const { orderId, patientId, dermatologistId } = req.query;
     console.log('[PHONEPE][REDIRECT] Payment status redirect:', { orderId, patientId, dermatologistId });
     
@@ -209,13 +209,24 @@ router.get('/payment-status', (req, res) => {
         return res.redirect(`${FRONTEND_URL}/payment-status.html?error=missing_params`);
     }
 
-    // Try React route first, fallback to HTML file
-    const reactUrl = `${FRONTEND_URL}/payment-status?orderId=${orderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`;
-    const htmlUrl = `${FRONTEND_URL}/payment-status.html?orderId=${orderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`;
-    
-    console.log('[PHONEPE][REDIRECT] Redirecting to React route:', reactUrl);
-    console.log('[PHONEPE][REDIRECT] HTML fallback available at:', htmlUrl);
-    
+    // Trust the redirect: mark payment as paid
+    try {
+        const payment = await Payment.findOneAndUpdate(
+            { orderId, patientId, dermatologistId },
+            { paid: true },
+            { new: true }
+        );
+        if (payment) {
+            console.log('[PHONEPE][REDIRECT] Payment marked as paid:', payment._id);
+        } else {
+            console.warn('[PHONEPE][REDIRECT] Payment not found to mark as paid');
+        }
+    } catch (err) {
+        console.error('[PHONEPE][REDIRECT] Error marking payment as paid:', err);
+    }
+
+    // Redirect to React route (HashRouter)
+    const reactUrl = `${FRONTEND_URL}/#/payment-status?orderId=${orderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`;
     res.redirect(reactUrl);
 });
 
