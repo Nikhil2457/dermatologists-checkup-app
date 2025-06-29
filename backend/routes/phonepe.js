@@ -206,28 +206,105 @@ router.get('/payment-status', async (req, res) => {
     
     if (!orderId || !patientId || !dermatologistId) {
         console.warn('[PHONEPE][REDIRECT] Missing query parameters');
-        return res.redirect(`${FRONTEND_URL}/payment-status.html?error=missing_params`);
+        return res.redirect(`${FRONTEND_URL}/#/payment-status?error=missing_params`);
     }
 
-    // Trust the redirect: mark payment as paid
     try {
-        const payment = await Payment.findOneAndUpdate(
-            { orderId, patientId, dermatologistId },
-            { paid: true },
-            { new: true }
-        );
-        if (payment) {
-            console.log('[PHONEPE][REDIRECT] Payment marked as paid:', payment._id);
-        } else {
-            console.warn('[PHONEPE][REDIRECT] Payment not found to mark as paid');
+        // First check if we have this payment in our database
+        const payment = await Payment.findOne({ orderId, patientId, dermatologistId });
+        if (!payment) {
+            console.warn('[PHONEPE][REDIRECT] Payment not found in database');
+            return res.redirect(`${FRONTEND_URL}/#/payment-status?error=payment_not_found&orderId=${orderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`);
         }
-    } catch (err) {
-        console.error('[PHONEPE][REDIRECT] Error marking payment as paid:', err);
-    }
 
-    // Redirect to React route (HashRouter)
-    const reactUrl = `${FRONTEND_URL}/#/payment-status?orderId=${orderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`;
-    res.redirect(reactUrl);
+        // Check payment status from PhonePe API
+        const statusPayload = {
+            merchantId: PHONEPE_MERCHANT_ID,
+            merchantTransactionId: orderId
+        };
+
+        const statusPayloadBase64 = Buffer.from(JSON.stringify(statusPayload), 'utf8').toString('base64');
+        const statusChecksum = await generateChecksum(statusPayloadBase64, '/pg/v1/status', PHONEPE_SALT_KEY);
+
+        const statusOptions = {
+            method: 'POST',
+            url: PHONEPE_STATUS_URL,
+            headers: {
+                accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-VERIFY': statusChecksum
+            },
+            data: { request: statusPayloadBase64 }
+        };
+
+        console.log('[PHONEPE][REDIRECT] Checking payment status from PhonePe...');
+        const response = await axios.request(statusOptions);
+        
+        let paymentStatus = 'UNKNOWN';
+        let shouldMarkAsPaid = false;
+        let errorMessage = null;
+
+        if (response.data && response.data.success && response.data.data) {
+            const phonepeState = response.data.data.state;
+            console.log('[PHONEPE][REDIRECT] PhonePe state:', phonepeState);
+            
+            // Handle different payment states
+            switch (phonepeState) {
+                case 'SUCCESS':
+                case 'COMPLETED':
+                    paymentStatus = 'SUCCESS';
+                    if (!payment.paid) {
+                        shouldMarkAsPaid = true;
+                    }
+                    break;
+                    
+                case 'PENDING':
+                case 'PROCESSING':
+                    paymentStatus = 'PROCESSING';
+                    errorMessage = 'Payment is still being processed. Please wait a moment and try again.';
+                    break;
+                    
+                case 'FAILED':
+                case 'CANCELLED':
+                case 'EXPIRED':
+                    paymentStatus = 'FAILED';
+                    errorMessage = 'Payment failed. Please try again or contact support.';
+                    break;
+                    
+                default:
+                    paymentStatus = phonepeState || 'UNKNOWN';
+                    errorMessage = 'Payment status is unclear. Please contact support.';
+                    break;
+            }
+        } else {
+            console.warn('[PHONEPE][REDIRECT] Could not verify payment status from PhonePe');
+            paymentStatus = 'UNKNOWN';
+            errorMessage = 'Could not verify payment status. Please contact support.';
+        }
+
+        // Mark payment as paid if successful
+        if (shouldMarkAsPaid) {
+            payment.paid = true;
+            await payment.save();
+            console.log('[PHONEPE][REDIRECT] Payment marked as paid:', payment._id);
+        }
+
+        // Build redirect URL with appropriate parameters
+        let reactUrl = `${FRONTEND_URL}/#/payment-status?orderId=${orderId}&patientId=${patientId}&dermatologistId=${dermatologistId}&status=${paymentStatus}`;
+        
+        if (errorMessage) {
+            reactUrl += `&error=${encodeURIComponent(errorMessage)}`;
+        }
+
+        console.log('[PHONEPE][REDIRECT] Redirecting to:', reactUrl);
+        res.redirect(reactUrl);
+        
+    } catch (err) {
+        console.error('[PHONEPE][REDIRECT] Error processing payment status:', err);
+        // Redirect with error but still pass the parameters
+        const reactUrl = `${FRONTEND_URL}/#/payment-status?orderId=${orderId}&patientId=${patientId}&dermatologistId=${dermatologistId}&error=processing_error&status=ERROR`;
+        res.redirect(reactUrl);
+    }
 });
 
 module.exports = router; 
