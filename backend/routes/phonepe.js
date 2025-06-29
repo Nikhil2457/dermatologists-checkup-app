@@ -188,12 +188,13 @@ router.get('/status/:orderId', async (req, res) => {
             });
         }
     } catch (error) {
-        console.error('[PHONEPE][STATUS] Error:', error.message);
+        console.error('[PHONEPE][STATUS] Error:', error.message, error.response?.data);
         res.status(500).json({ 
             success: false,
             status: 'FAILED', 
             message: 'Error checking payment status',
-            error: error.message 
+            error: error.message,
+            phonepeError: error.response?.data
         });
     }
 });
