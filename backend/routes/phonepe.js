@@ -197,4 +197,47 @@ router.get('/status/:orderId', async (req, res) => {
     }
 });
 
+// Webhook endpoint for PhonePe payment status updates
+router.post('/webhook', async (req, res) => {
+  try {
+    // PhonePe sends event type and data in the webhook payload
+    const event = req.body.event;
+    const data = req.body.data || req.body; // fallback if data is at root
+
+    // For 'pg.order.completed', mark payment as successful
+    if (event === 'pg.order.completed') {
+      const orderId = data.merchantTransactionId || data.orderId;
+      if (orderId) {
+        const payment = await Payment.findOne({ orderId });
+        if (payment) {
+          payment.paid = true;
+          await payment.save();
+          console.log(`Payment marked as PAID for orderId: ${orderId}`);
+        } else {
+          console.warn(`No payment found for orderId: ${orderId}`);
+        }
+      }
+    }
+    // Optionally handle failed payments
+    if (event === 'pg.order.failed') {
+      const orderId = data.merchantTransactionId || data.orderId;
+      if (orderId) {
+        const payment = await Payment.findOne({ orderId });
+        if (payment) {
+          payment.paid = false;
+          await payment.save();
+          console.log(`Payment marked as FAILED for orderId: ${orderId}`);
+        } else {
+          console.warn(`No payment found for orderId: ${orderId}`);
+        }
+      }
+    }
+    // Always respond quickly
+    res.status(200).send('OK');
+  } catch (err) {
+    console.error('Error handling PhonePe webhook:', err);
+    res.status(500).send('Error');
+  }
+});
+
 module.exports = router; 
