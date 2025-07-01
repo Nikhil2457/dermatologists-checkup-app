@@ -99,7 +99,7 @@ router.post('/initiate', async (req, res) => {
     }
 });
 
-// Check PhonePe payment status
+// Check PhonePe payment status (Hermes/legacy style)
 router.get('/status/:orderId', async (req, res) => {
     try {
         const { orderId } = req.params;
@@ -126,7 +126,7 @@ router.get('/status/:orderId', async (req, res) => {
             });
         }
 
-        // Use PhonePe API to get order status
+        // Use PhonePe Hermes API to get order status (POST request)
         const statusPayload = {
             merchantId: PHONEPE_MERCHANT_ID,
             merchantTransactionId: orderId
@@ -137,7 +137,7 @@ router.get('/status/:orderId', async (req, res) => {
 
         const statusOptions = {
             method: 'POST',
-            url: PHONEPE_STATUS_URL,
+            url: `${PHONEPE_STATUS_URL}/pg/v1/status`,
             headers: {
                 accept: 'application/json',
                 'Content-Type': 'application/json',
@@ -146,7 +146,7 @@ router.get('/status/:orderId', async (req, res) => {
             data: { request: statusPayloadBase64 }
         };
 
-        console.log('[PHONEPE][STATUS] Making status request to PhonePe...');
+        console.log('[PHONEPE][STATUS] Making POST status request to PhonePe Hermes...', statusOptions.url);
         const response = await axios.request(statusOptions);
         console.log('[PHONEPE][STATUS] Full PhonePe response:', response.data);
         
