@@ -26,7 +26,13 @@ const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 const PHONEPE_CLIENT_ID = process.env.PHONEPE_CLIENT_ID || 'TEST-M238CJJ16JL8W_25062';
 const PHONEPE_CLIENT_SECRET = process.env.PHONEPE_CLIENT_SECRET || 'YWRhODgxYzEtYWRiNS00ZmQ2LWE4ZTEtNGRhMDAwY2QyODkx';
 const PHONEPE_CLIENT_VERSION = 1;
-const PHONEPE_ENV = Env.SANDBOX; // Change to Env.PRODUCTION when going live
+// Use environment variable to set environment
+let PHONEPE_ENV;
+if (process.env.PHONEPE_ENV && (process.env.PHONEPE_ENV.toUpperCase() === 'PROD' || process.env.PHONEPE_ENV.toUpperCase() === 'PRODUCTION')) {
+  PHONEPE_ENV = Env.PRODUCTION;
+} else {
+  PHONEPE_ENV = Env.SANDBOX;
+}
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 // Initialize PhonePe client
