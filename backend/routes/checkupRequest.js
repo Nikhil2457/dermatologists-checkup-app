@@ -351,7 +351,7 @@ router.post('/checkup-request/initiate-payment', async (req, res) => {
 
     const merchantOrderId = randomUUID();
     const amountInPaise = parseFloat(amount) * 100; // Convert to paise
-    const redirectUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/phonepe/payment-status?orderId=${merchantOrderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`;
+    const redirectUrl = `https://dermatologists-checkup-app-front.onrender.com/payment-status?orderId=${merchantOrderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`;
     
     const metaInfo = MetaInfo.builder()
       .udf1(patientId)
@@ -403,6 +403,14 @@ router.post('/checkup-request/initiate-payment', async (req, res) => {
     console.error('PhonePe payment initiation error:', error);
     res.status(500).json({ error: error.message });
   }
+});
+
+// Add dummy GET /api/phonepe/payment-status route
+router.get('/api/phonepe/payment-status', (req, res) => {
+  const { orderId, patientId, dermatologistId } = req.query;
+  return res.redirect(
+    `https://dermatologists-checkup-app-front.onrender.com/payment-status?orderId=${orderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`
+  );
 });
 
 module.exports = router;
