@@ -11,7 +11,7 @@ const PHONEPE_MERCHANT_ID = process.env.PHONEPE_MERCHANT_ID ;
 const PHONEPE_BASE_URL = process.env.PHONEPE_BASE_URL;
 const PHONEPE_STATUS_URL = process.env.PHONEPE_STATUS_URL ;
 const PHONEPE_SALT_KEY = process.env.PHONEPE_SALT_KEY ;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+
 
 // Initiate PhonePe payment
 router.post('/initiate', async (req, res) => {
@@ -32,8 +32,8 @@ router.post('/initiate', async (req, res) => {
             merchantTransactionId: orderId,
             merchantUserId: patientId,
             amount: parseFloat(amount) * 100, // in paise
-            redirectUrl: `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/phonepe/payment-status?orderId=${orderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`,
-            callbackUrl: `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/phonepe/payment-status?orderId=${orderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`,
+            redirectUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/#/payment-status?orderId=${orderId}&patientId=${patientId}&dermatologistId=${dermatologistId}`,
+            callbackUrl: `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/phonepe/webhook`,
             paymentInstrument: { type: 'PAY_PAGE' }
         };
 
