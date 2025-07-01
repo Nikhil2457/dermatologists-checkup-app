@@ -4,6 +4,7 @@ const axios = require('axios');
 const { Buffer } = require('node:buffer');
 const { generateOrderId, generateChecksum } = require('../utils/phonepeHelper');
 const Payment = require('../models/Payment');
+const crypto = require('crypto');
 
 // Use environment variables for credentials
 const PHONEPE_MERCHANT_ID = process.env.PHONEPE_MERCHANT_ID ;
@@ -200,42 +201,52 @@ router.get('/status/:orderId', async (req, res) => {
 // Webhook endpoint for PhonePe payment status updates
 router.post('/webhook', async (req, res) => {
   try {
-    // PhonePe sends event type and data in the webhook payload
-    const event = req.body.event;
-    const data = req.body.data || req.body; // fallback if data is at root
+    // 1. Validate Authorization header
+    const authHeader = req.headers['authorization'];
+    const username = process.env.PHONEPE_WEBHOOK_USERNAME;
+    const password = process.env.PHONEPE_WEBHOOK_PASSWORD;
+    const expectedHash = crypto.createHash('sha256').update(`${username}:${password}`).digest('hex');
 
-    // For 'pg.order.completed', mark payment as successful
-    if (event === 'pg.order.completed') {
-      const orderId = data.merchantTransactionId || data.orderId;
-      if (orderId) {
-        const payment = await Payment.findOne({ orderId });
-        if (payment) {
-          payment.paid = true;
-          await payment.save();
-          console.log(`Payment marked as PAID for orderId: ${orderId}`);
-        } else {
-          console.warn(`No payment found for orderId: ${orderId}`);
-        }
-      }
+    if (!authHeader || authHeader !== expectedHash) {
+      console.warn('[PHONEPE][WEBHOOK] Invalid Authorization header');
+      return res.status(401).send('Unauthorized');
     }
-    // Optionally handle failed payments
-    if (event === 'pg.order.failed') {
-      const orderId = data.merchantTransactionId || data.orderId;
-      if (orderId) {
-        const payment = await Payment.findOne({ orderId });
-        if (payment) {
-          payment.paid = false;
-          await payment.save();
-          console.log(`Payment marked as FAILED for orderId: ${orderId}`);
-        } else {
-          console.warn(`No payment found for orderId: ${orderId}`);
-        }
-      }
+
+    // 2. Extract event and payload
+    const event = req.body.event;
+    const payload = req.body.payload;
+    if (!event || !payload || !payload.orderId || !payload.state) {
+      console.warn('[PHONEPE][WEBHOOK] Malformed webhook payload:', req.body);
+      return res.status(400).send('Malformed payload');
     }
-    // Always respond quickly
+
+    const orderId = payload.orderId;
+    const state = payload.state;
+
+    // 3. Find payment in DB
+    const payment = await Payment.findOne({ orderId });
+    if (!payment) {
+      console.warn(`[PHONEPE][WEBHOOK] No payment found for orderId: ${orderId}`);
+      return res.status(404).send('Payment not found');
+    }
+
+    // 4. Update payment status based on payload.state
+    if (state === 'COMPLETED') {
+      payment.paid = true;
+      await payment.save();
+      console.log(`[PHONEPE][WEBHOOK] Payment marked as PAID for orderId: ${orderId}`);
+    } else if (state === 'FAILED' || state === 'CANCELLED' || state === 'EXPIRED') {
+      payment.paid = false;
+      await payment.save();
+      console.log(`[PHONEPE][WEBHOOK] Payment marked as FAILED for orderId: ${orderId}`);
+    } else {
+      console.log(`[PHONEPE][WEBHOOK] Payment state "${state}" for orderId: ${orderId} - no action taken`);
+    }
+
+    // 5. Always respond quickly
     res.status(200).send('OK');
   } catch (err) {
-    console.error('Error handling PhonePe webhook:', err);
+    console.error('[PHONEPE][WEBHOOK] Error handling webhook:', err);
     res.status(500).send('Error');
   }
 });
