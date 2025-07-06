@@ -351,8 +351,8 @@ router.post('/checkup-request/initiate-payment', async (req, res) => {
 
     const merchantOrderId = randomUUID();
     const amountInPaise = parseFloat(amount) * 100; // Convert to paise
-    // Use production frontend and backend URLs
-    const redirectUrl = `https://dermatologists-checkup-app-front.onrender.com/#/success`;
+    // Use dynamic redirect URL that can handle both success and failure
+    const redirectUrl = `https://dermatologists-checkup-app-front.onrender.com/#/payment-callback?orderId=${merchantOrderId}`;
     
     const metaInfo = MetaInfo.builder()
       .udf1(patientId)
