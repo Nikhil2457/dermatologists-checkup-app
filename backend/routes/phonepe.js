@@ -33,12 +33,26 @@ router.get('/webhook-status/:orderId', async (req, res) => {
                 message: 'Payment not found'
             });
         }
+        
+        console.log('[PHONEPE][WEBHOOK-STATUS] Payment record:', {
+            orderId: payment.orderId,
+            paid: payment.paid,
+            used: payment.used,
+            amount: payment.amount,
+            timestamp: payment.timestamp
+        });
+        
         let status = 'PROCESSING';
         if (payment.paid === true) {
             status = 'SUCCESS';
-        } else if (payment.paid === false && payment.used === false) {
-            status = 'FAILED';
+        } else if (payment.paid === false) {
+            // If payment is explicitly marked as not paid, it's failed
+            // If payment.paid is undefined/null, it's still processing
+            status = payment.paid === false ? 'FAILED' : 'PROCESSING';
         }
+        
+        console.log('[PHONEPE][WEBHOOK-STATUS] Determined status:', status);
+        
         res.json({
             success: true,
             status,
@@ -49,6 +63,7 @@ router.get('/webhook-status/:orderId', async (req, res) => {
             message: `Payment status: ${status}`
         });
     } catch (error) {
+        console.error('[PHONEPE][WEBHOOK-STATUS] Error:', error);
         res.status(500).json({
             success: false,
             status: 'FAILED',
@@ -137,15 +152,16 @@ router.post('/webhook', async (req, res) => {
     }
 
     const orderId = payload.orderId;
+    const merchantOrderId = payload.merchantOrderId;
     const state = payload.state;
-    console.log('[PHONEPE][WEBHOOK] Processing payment:', { orderId, state });
+    console.log('[PHONEPE][WEBHOOK] Processing payment:', { orderId, merchantOrderId, state });
 
-    // Find payment in DB
-    const payment = await Payment.findOne({ orderId });
+    // Find payment in DB by merchantOrderId (our orderId)
+    const payment = await Payment.findOne({ orderId: merchantOrderId });
     console.log('[PHONEPE][WEBHOOK] Payment found in DB:', payment);
 
     if (!payment) {
-      console.warn(`[PHONEPE][WEBHOOK] No payment found for orderId: ${orderId}`);
+      console.warn(`[PHONEPE][WEBHOOK] No payment found for merchantOrderId: ${merchantOrderId}`);
       return res.status(404).send('Payment not found');
     }
 
@@ -153,13 +169,13 @@ router.post('/webhook', async (req, res) => {
     if (state === 'COMPLETED') {
       payment.paid = true;
       await payment.save();
-      console.log(`[PHONEPE][WEBHOOK] Payment marked as PAID for orderId: ${orderId}`);
+      console.log(`[PHONEPE][WEBHOOK] Payment marked as PAID for merchantOrderId: ${merchantOrderId}`);
     } else if (state === 'FAILED' || state === 'CANCELLED' || state === 'EXPIRED') {
       payment.paid = false;
       await payment.save();
-      console.log(`[PHONEPE][WEBHOOK] Payment marked as FAILED for orderId: ${orderId}`);
+      console.log(`[PHONEPE][WEBHOOK] Payment marked as FAILED for merchantOrderId: ${merchantOrderId}`);
     } else {
-      console.log(`[PHONEPE][WEBHOOK] Payment state "${state}" for orderId: ${orderId} - no action taken`);
+      console.log(`[PHONEPE][WEBHOOK] Payment state "${state}" for merchantOrderId: ${merchantOrderId} - no action taken`);
     }
 
     console.log('[PHONEPE][WEBHOOK] Webhook processed successfully');
@@ -168,6 +184,50 @@ router.post('/webhook', async (req, res) => {
     console.error('[PHONEPE][WEBHOOK] Error handling webhook:', err);
     res.status(500).send('Error');
   }
+});
+
+// Manual payment status update endpoint for debugging
+router.post('/manual-update-status', async (req, res) => {
+    try {
+        const { orderId, paid } = req.body;
+        if (!orderId || typeof paid !== 'boolean') {
+            return res.status(400).json({
+                success: false,
+                message: 'Missing orderId or paid status'
+            });
+        }
+        
+        const payment = await Payment.findOne({ orderId });
+        if (!payment) {
+            return res.status(404).json({
+                success: false,
+                message: 'Payment not found'
+            });
+        }
+        
+        payment.paid = paid;
+        await payment.save();
+        
+        console.log(`[PHONEPE][MANUAL-UPDATE] Payment ${orderId} manually marked as paid: ${paid}`);
+        
+        res.json({
+            success: true,
+            message: `Payment ${orderId} updated to paid: ${paid}`,
+            payment: {
+                orderId: payment.orderId,
+                paid: payment.paid,
+                used: payment.used,
+                amount: payment.amount
+            }
+        });
+    } catch (error) {
+        console.error('[PHONEPE][MANUAL-UPDATE] Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error updating payment status',
+            error: error.message
+        });
+    }
 });
 
 module.exports = router; 
