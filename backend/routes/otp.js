@@ -16,7 +16,8 @@ router.post('/send-otp', async (req, res) => {
       return res.status(400).json({ message: 'Invalid phone number. Must be 10 digits.' });
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Change OTP to 4 digits
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 min expiry
 
     // Remove old OTPs for this phone number
