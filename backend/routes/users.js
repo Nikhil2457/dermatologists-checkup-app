@@ -90,4 +90,42 @@ router.post('/login', async (req, res) => {
   }
 });
 
+
+// POST /api/forgot-credentials
+router.post('/forgot-credentials', async (req, res) => {
+  const { phone } = req.body;
+  if (!phone) return res.status(400).json({ message: "Phone number is required" });
+
+  try {
+    const users = await User.find({ phone });
+    if (users.length === 0) {
+      return res.status(404).json({ message: "No account found with this phone number" });
+    }
+    res.json({ usernames: users.map(u => u.username) });
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// POST /api/update-password
+router.post('/update-password', async (req, res) => {
+  const { phone, username, newPassword } = req.body;
+  if (!phone || !username || !newPassword) {
+    return res.status(400).json({ message: "Phone, username, and new password are required" });
+  }
+
+  try {
+    const user = await User.findOne({ phone, username });
+    if (!user) {
+      return res.status(404).json({ message: "No account found with this phone and username" });
+    }
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+    res.json({ message: "Password updated successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
 module.exports = router;
