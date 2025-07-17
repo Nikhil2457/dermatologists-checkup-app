@@ -97,7 +97,12 @@ router.post('/forgot-credentials', async (req, res) => {
   if (!phone) return res.status(400).json({ message: "Phone number is required" });
 
   try {
-    const users = await User.find({ phoneNumber: phone });
+    const users = await User.find({
+      $or: [
+        { phoneNumber: phone },
+        { username: phone }
+      ]
+    });
     if (users.length === 0) {
       return res.status(404).json({ message: "No account found with this phone number" });
     }
